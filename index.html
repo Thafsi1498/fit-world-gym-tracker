@@ -59,6 +59,22 @@ input,select,textarea{background:#13110f;border-color:#4b3b30}input:focus,select
 .fw-history-tools label{font-size:12px;color:var(--muted,#aaa);font-weight:700}
 #historyMuscleFilter{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit}
 .fw-history-summary{font-size:12px;color:var(--muted,#aaa);margin:0 0 12px}
+/* FIT WORLD History cards: clearer summaries and collapsible exercise details */
+#historyList{display:flex;flex-direction:column;gap:12px}
+#historyList .historyitem{border:1px solid var(--line);border-radius:15px;background:linear-gradient(145deg,#211a16,#17120f);padding:14px;margin:0;overflow:hidden}
+#historyList .fw-history-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+#historyList .fw-history-date{font-size:17px;font-weight:850;letter-spacing:.2px;color:var(--text)}
+#historyList .fw-history-metrics{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#historyList .fw-history-chip{display:inline-flex;align-items:center;border:1px solid #594032;background:#2a1c15;color:#ffbd88;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:750}
+#historyList .fw-history-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:11px 12px;border:1px solid #493126;border-radius:11px;background:#211a16;color:var(--text);font-weight:750;text-align:left}
+#historyList .fw-history-toggle .fw-history-chevron{color:#ff9b4a;transition:transform .2s ease}
+#historyList .fw-history-toggle[aria-expanded="true"] .fw-history-chevron{transform:rotate(180deg)}
+#historyList .fw-history-details{padding:8px 2px 0}
+#historyList .fw-history-exercise{padding:11px 0;border-bottom:1px solid var(--line)}
+#historyList .fw-history-exercise:last-child{border-bottom:0}
+#historyList .fw-history-exercise-name{font-weight:800;line-height:1.4}
+#historyList .fw-history-exercise-meta{color:var(--muted,#aaa);font-size:12px;line-height:1.6;margin-top:4px;overflow-wrap:anywhere}
+@media(max-width:420px){#historyList .historyitem{padding:12px}#historyList .fw-history-date{font-size:16px}}
 @media(prefers-reduced-motion:reduce){#fwIntro *,#fwIntro *::before,#fwIntro *::after{animation:none!important;transition:none!important}}
 </style>
 <style id="fw-exercise-library-style">
@@ -146,8 +162,23 @@ function renderHistory(){
  if(filter!=='all') arr=arr.filter(w=>(w.exercises||[]).some(e=>(e.muscle||'Other')===filter));
  const summary=$('historySummary');
  if(summary) summary.textContent=filter==='all'?`Showing all ${arr.length} saved workout${arr.length===1?'':'s'}.`:`${arr.length} workout${arr.length===1?'':'s'} with ${filter} exercises.`;
- $('historyList').innerHTML=arr.length?arr.map(w=>{const exercises=(w.exercises||[]).filter(e=>filter==='all'||(e.muscle||'Other')===filter);const setCount=exercises.reduce((n,e)=>n+(e.sets||[]).length,0);return `<div class="historyitem"><div class="exhead"><div><strong>${esc(w.date)}</strong><div class="muted" style="font-size:12px">${exercises.length} ${exercises.length===1?'exercise':'exercises'} · ${setCount} sets${filter!=='all'?' · '+esc(filter):''}</div></div><button class="btn danger small" onclick="deleteWorkout(${w.id})">Delete</button></div>${exercises.map(e=>`<div style="margin-top:8px"><strong>${esc(e.name)}</strong> <span class="muted">(${esc(e.muscle||'Other')})</span><div class="muted" style="font-size:12px">${(e.sets||[]).map(s=>`${s.weight} kg × ${s.reps}`).join(' · ')}</div></div>`).join('')}</div>`}).join(''):'<div class="empty">'+(filter==='all'?'Your saved sessions will appear here.':`No saved workouts found for ${esc(filter)}. Try another muscle group or choose All muscle groups.`)+'</div>';
+ $('historyList').innerHTML=arr.length?arr.map((w,index)=>{
+   const exercises=(w.exercises||[]).filter(e=>filter==='all'||(e.muscle||'Other')===filter);
+   const setCount=exercises.reduce((n,e)=>n+(e.sets||[]).length,0);
+   const groups=[...new Set(exercises.map(e=>e.muscle||'Other'))];
+   const detailId='fwHistoryDetails-'+String(w.id).replace(/[^a-zA-Z0-9_-]/g,'')+'-'+index;
+   return `<article class="historyitem">
+     <div class="fw-history-card-head"><div>
+       <div class="fw-history-date">${esc(w.date)}</div>
+       <div class="fw-history-metrics"><span class="fw-history-chip">${exercises.length} ${exercises.length===1?'exercise':'exercises'}</span><span class="fw-history-chip">${setCount} sets</span>${groups.map(g=>`<span class="fw-history-chip">${esc(g)}</span>`).join('')}</div>
+     </div><button class="btn danger small" onclick="deleteWorkout(${Number(w.id)})" aria-label="Delete workout on ${esc(w.date)}">Delete</button></div>
+     <button type="button" class="fw-history-toggle" aria-expanded="false" aria-controls="${detailId}" onclick="toggleHistoryDetails(this)"><span>View exercises and sets</span><span class="fw-history-chevron" aria-hidden="true">⌄</span></button>
+     <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div></div>`).join('')}</div>
+   </article>`
+ }).join(''):'<div class="empty">'+(filter==='all'?'Your saved sessions will appear here.':`No saved workouts found for ${esc(filter)}. Try another muscle group or choose All muscle groups.`)+'</div>';
 }
+function toggleHistoryDetails(button){const panel=$(button.getAttribute('aria-controls'));if(!panel)return;const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));panel.classList.toggle('hidden',expanded);button.querySelector('span').textContent=expanded?'View exercises and sets':'Hide exercise details'}
+
 function deleteWorkout(id){if(confirm('Delete this saved workout?')){db.workouts=db.workouts.filter(w=>w.id!==id);persist()}}
 function renderProgress(){let now=new Date(),start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));let week=db.workouts.filter(w=>new Date(w.date+'T12:00:00')>=start);$('weekWorkouts').textContent=week.length;$('weekSets').textContent=week.reduce((n,w)=>n+allSets(w).length,0);$('totalWorkouts').textContent=db.workouts.length;$('totalExercises').textContent=db.workouts.reduce((n,w)=>n+w.exercises.length,0);
 let best={};db.workouts.forEach(w=>(w.exercises||[]).forEach(e=>(e.sets||[]).forEach(s=>{let k=e.name.trim();if(!k)return;if(!best[k]||s.weight>best[k].weight||(s.weight===best[k].weight&&s.reps>best[k].reps))best[k]={weight:s.weight,reps:s.reps,date:w.date}})));
