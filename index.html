@@ -74,6 +74,11 @@ input,select,textarea{background:#13110f;border-color:#4b3b30}input:focus,select
 #historyList .fw-history-exercise:last-child{border-bottom:0}
 #historyList .fw-history-exercise-name{font-weight:800;line-height:1.4}
 #historyList .fw-history-exercise-meta{color:var(--muted,#aaa);font-size:12px;line-height:1.6;margin-top:4px;overflow-wrap:anywhere}
+#historyList .fw-compare{margin-top:9px;padding:10px 11px;border:1px solid #68462f;border-radius:10px;background:#201811;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+#historyList .fw-compare strong{display:block;color:#ffb27b;font-size:12px;margin-bottom:4px}
+#historyList .fw-compare-note{color:var(--muted,#aaa)}
+#historyList .fw-compare-current{margin-top:3px;color:var(--text,#eee)}
+#historyList .fw-compare-delta{margin-top:4px;color:#ffb27b;font-weight:800}
 @media(max-width:420px){#historyList .historyitem{padding:12px}#historyList .fw-history-date{font-size:16px}}
 @media(prefers-reduced-motion:reduce){#fwIntro *,#fwIntro *::before,#fwIntro *::after{animation:none!important;transition:none!important}}
 </style>
@@ -173,11 +178,16 @@ function renderHistory(){
        <div class="fw-history-metrics"><span class="fw-history-chip">${exercises.length} ${exercises.length===1?'exercise':'exercises'}</span><span class="fw-history-chip">${setCount} sets</span>${groups.map(g=>`<span class="fw-history-chip">${esc(g)}</span>`).join('')}</div>
      </div><button class="btn danger small" onclick="deleteWorkout(${Number(w.id)})" aria-label="Delete workout on ${esc(w.date)}">Delete</button></div>
      <button type="button" class="fw-history-toggle" aria-expanded="false" aria-controls="${detailId}" onclick="toggleHistoryDetails(this)"><span>View exercises and sets</span><span class="fw-history-chevron" aria-hidden="true">⌄</span></button>
-     <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div></div>`).join('')}</div>
+     <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div>${comparisonMarkup(w,e)}</div>`).join('')}</div>
    </article>`
  }).join(''):'<div class="empty">'+(filter==='all'?'Your saved sessions will appear here.':`No saved workouts found for ${esc(filter)}. Try another muscle group or choose All muscle groups.`)+'</div>';
 }
 function toggleHistoryDetails(button){const panel=$(button.getAttribute('aria-controls'));if(!panel)return;const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));panel.classList.toggle('hidden',expanded);button.querySelector('span').textContent=expanded?'View exercises and sets':'Hide exercise details'}
+
+// Compare each logged exercise with its most recent earlier occurrence without changing saved workout data.
+function strongestSet(exercise){const sets=(exercise?.sets||[]).filter(s=>Number.isFinite(Number(s.weight))&&Number.isFinite(Number(s.reps)));if(!sets.length)return null;return sets.reduce((best,s)=>!best||Number(s.weight)>Number(best.weight)||(Number(s.weight)===Number(best.weight)&&Number(s.reps)>Number(best.reps))?s:best,null)}
+function previousExerciseFor(workout,exercise){const ordered=db.workouts.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||Number(a.id)-Number(b.id));const idx=ordered.findIndex(w=>String(w.id)===String(workout.id));if(idx<0)return null;for(let i=idx-1;i>=0;i--){const match=(ordered[i].exercises||[]).find(e=>norm(e.name)===norm(exercise.name));if(match)return {date:ordered[i].date,exercise:match}}return null}
+function comparisonMarkup(workout,exercise){const prev=previousExerciseFor(workout,exercise);if(!prev)return '<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">First saved session for this exercise — the next session will be compared here.</div></div>';const now=strongestSet(exercise),before=strongestSet(prev.exercise);if(!now||!before)return `<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">Previous session: ${esc(prev.date)} · Set details unavailable.</div></div>`;const weightDiff=Number(now.weight)-Number(before.weight),repDiff=Number(now.reps)-Number(before.reps);const fmt=n=>(n>0?'+':'')+String(Number(n.toFixed(2)));return `<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">Previous · ${esc(prev.date)}: ${esc(before.weight)} kg × ${esc(before.reps)} reps</div><div class="fw-compare-current">Current best set: ${esc(now.weight)} kg × ${esc(now.reps)} reps</div><div class="fw-compare-delta">Weight ${esc(fmt(weightDiff))} kg · Reps ${esc(fmt(repDiff))}</div></div>`}
 
 function deleteWorkout(id){if(confirm('Delete this saved workout?')){db.workouts=db.workouts.filter(w=>w.id!==id);persist()}}
 function renderProgress(){let now=new Date(),start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));let week=db.workouts.filter(w=>new Date(w.date+'T12:00:00')>=start);$('weekWorkouts').textContent=week.length;$('weekSets').textContent=week.reduce((n,w)=>n+allSets(w).length,0);$('totalWorkouts').textContent=db.workouts.length;$('totalExercises').textContent=db.workouts.reduce((n,w)=>n+w.exercises.length,0);
