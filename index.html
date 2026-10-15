@@ -90,7 +90,10 @@ input,select,textarea{background:#13110f;border-color:#4b3b30}input:focus,select
 #fwExerciseLibrary .fw-note{border:1px solid #594032;background:#211a16;padding:12px;border-radius:12px;color:#d5c8be;font-size:12px;line-height:1.5;margin-top:14px}#fwExerciseLibrary .fw-empty{padding:22px;text-align:center;color:#c6bbb4;grid-column:1/-1}@media(min-width:640px){#fwExerciseLibrary{padding:24px}#fwExerciseLibrary .fw-controls{grid-template-columns:2fr 1fr}}
 </style>
 
-<style id="fw-library-shortcut-style">#fwLibraryShortcut{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:9998;background:#ff7a1a;color:#17120f;border:2px solid #17120f;box-shadow:0 5px 20px #0008;border-radius:999px;padding:12px 16px;font:800 13px/1.2 system-ui,sans-serif;text-decoration:none;display:flex;align-items:center;gap:8px}#fwLibraryShortcut:focus{outline:3px solid #fff;outline-offset:3px}@media(min-width:900px){#fwLibraryShortcut{right:24px;bottom:24px}}</style>
+<style id="fw-library-shortcut-style">#fwLibraryShortcut{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:9998;background:#ff7a1a;color:#17120f;border:2px solid #17120f;box-shadow:0 5px 20px #0008;border-radius:999px;padding:12px 16px;font:800 13px/1.2 system-ui,sans-serif;text-decoration:none;display:flex;align-items:center;gap:8px}#fwLibraryShortcut:focus{outline:3px solid #fff;outline-offset:3px}@media(min-width:900px){#fwLibraryShortcut{right:24px;bottom:24px}}
+.drop-stage-list{display:grid;gap:10px;margin:10px 0 14px}.drop-stage{display:grid;grid-template-columns:42px minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:12px;background:#11100f}.drop-stage-number{font-weight:800;color:var(--accent);align-self:center}.drop-stage label{font-size:12px}.drop-stage input{min-width:0}.drop-stage-actions{margin-top:8px}@media(max-width:420px){.drop-stage{grid-template-columns:30px minmax(0,1fr) minmax(0,1fr);gap:6px;padding:8px}}
+
+</style>
 </head>
 <body>
 <div id="fwIntro" role="status" aria-label="FIT WORLD Gym Tracker opening animation">
@@ -104,17 +107,29 @@ input,select,textarea{background:#13110f;border-color:#4b3b30}input:focus,select
 <section id="today">
 <div class="card"><div class="headrow"><h2>Start a workout</h2><span class="muted" id="todayDate"></span></div>
 <label for="muscle">Muscle group</label><select id="muscle"><option>Chest</option><option>Back</option><option>Shoulders</option><option>Biceps</option><option>Triceps</option><option>Legs</option><option>Abs / Core</option><option>Full Body</option><option>Cardio</option><option>Other</option></select>
-<div class="grid"><div><label for="exname">Exercise name</label><input id="exname" placeholder="e.g. Chest Press"></div><div><label for="machine">Machine / equipment</label><input id="machine" placeholder="e.g. Machine A"></div></div>
-<div class="grid"><div><label for="weight">Weight (kg)</label><input id="weight" type="number" min="0" step="0.5" placeholder="25"></div><div><label for="reps">Reps</label><input id="reps" type="number" min="0" step="1" placeholder="12"></div></div>
-<label for="notes">Notes (optional)</label><input id="notes" placeholder="Seat setting, form notes, etc.">
-<div class="actions"><button class="btn" id="addSet">+ Add set</button><button class="btn secondary" id="addExercise">Save exercise</button></div>
-<p class="notice" id="prevRef">Previous workout reference will appear here when you enter an exercise name.</p>
+<label for="workoutType">Set type</label>
+<select id="workoutType">
+<option value="Normal">Normal</option>
+<option value="Superset">Superset · two workouts together</option>
+<option value="Drop Set">Drop Set · reduce weight in stages</option>
+</select>
+<p class="notice" id="setTypeHelp">Normal: record sets as usual.</p>
+<div class="grid"><div><label for="exname" id="primaryExerciseLabel">Workout name</label><input id="exname" placeholder="e.g. Chest Press"></div><div><label for="machine">Machine / equipment</label><input id="machine" placeholder="e.g. Machine A"></div></div>
+<div class="grid" id="normalSetFields"><div><label for="weight">Weight (kg)</label><input id="weight" type="number" min="0" step="0.5" placeholder="25"></div><div><label for="reps">Reps</label><input id="reps" type="number" min="0" step="1" placeholder="12"></div></div>
+<div id="supersetFields" class="hidden">
+  <div class="grid"><div><label for="exname2">Second workout (Superset)</label><input id="exname2" placeholder="e.g. Cable Fly"></div><div><label for="machine2">Second machine / equipment</label><input id="machine2" placeholder="e.g. Cable machine"></div></div>
+  <div class="grid"><div><label for="weight2">Second workout weight (kg)</label><input id="weight2" type="number" min="0" step="0.5" placeholder="15"></div><div><label for="reps2">Second workout reps</label><input id="reps2" type="number" min="0" step="1" placeholder="12"></div></div>
 </div>
-<div class="card"><div class="headrow"><h2>Current session</h2><span class="pill" id="setCount">0 sets</span></div><div id="sessionList" class="empty">No exercises saved in this session yet.</div><div class="actions"><button class="btn" id="finishWorkout">Finish & save workout</button><button class="btn secondary" id="clearSession">Clear session</button></div></div>
+<div id="dropSetFields" class="hidden"><h3 style="margin:12px 0 4px">Drop Set Stages</h3><p class="notice">Enter 3 stages by default. All stages together count as ONE set. Use Add more stage if needed.</p><div id="dropStageList" class="drop-stage-list"></div><div class="actions drop-stage-actions"><button type="button" class="btn secondary" id="addDropStage">+ Add more stage</button></div></div>
+<label for="notes">Notes (optional)</label><input id="notes" placeholder="Seat setting, form notes, etc.">
+<div class="actions"><button class="btn" id="addSet">+ Add set</button><button class="btn secondary" id="addExercise">Save workout</button></div>
+<p class="notice" id="prevRef">Previous workout reference will appear here when you enter a workout name.</p>
+</div>
+<div class="card"><div class="headrow"><h2>Current session</h2><span class="pill" id="setCount">0 sets</span></div><div id="sessionList" class="empty">No workouts saved in this session yet.</div><div class="actions"><button class="btn" id="finishWorkout">Finish & save workout</button><button class="btn secondary" id="clearSession">Clear session</button></div></div>
 <div class="card"><h2>Rest timer</h2><div class="timer" id="timerDisplay">01:30</div><div class="grid"><div><label for="timerSecs">Timer seconds</label><input id="timerSecs" type="number" value="90" min="1"></div><div class="actions" style="align-items:end"><button class="btn" id="timerStart">Start</button><button class="btn secondary" id="timerReset">Reset</button></div></div></div>
 </section>
 <section id="history" class="hidden"><div class="card"><h2>Workout history</h2><div class="fw-history-tools"><div><label for="historyMuscleFilter">Filter by muscle group</label><select id="historyMuscleFilter"><option value="all">All muscle groups</option><option>Chest</option><option>Back</option><option>Shoulders</option><option>Biceps</option><option>Triceps</option><option>Legs</option><option>Abs / Core</option><option>Full Body</option><option>Cardio</option><option>Other</option></select></div><p id="historySummary" class="fw-history-summary">Showing all saved workouts.</p></div><div id="historyList" class="empty">Your saved sessions will appear here.</div></div></section>
-<section id="progress" class="hidden"><div class="grid"><div class="stat"><small>Workouts this week</small><strong id="weekWorkouts">0</strong></div><div class="stat"><small>Sets this week</small><strong id="weekSets">0</strong></div><div class="stat"><small>Total sessions</small><strong id="totalWorkouts">0</strong></div><div class="stat"><small>Exercises logged</small><strong id="totalExercises">0</strong></div></div><div class="card" style="margin-top:13px"><h2>Personal records by exercise</h2><div id="recordsList" class="empty">Log workouts to build your records.</div></div><div class="card"><h2>Weekly training volume</h2><p class="notice">Volume = weight × reps for logged sets. This is a simple comparison metric, not a measure of training quality.</p><div id="volumeList"></div></div></section>
+<section id="progress" class="hidden"><div class="grid"><div class="stat"><small>Workouts this week</small><strong id="weekWorkouts">0</strong></div><div class="stat"><small>Sets this week</small><strong id="weekSets">0</strong></div><div class="stat"><small>Total sessions</small><strong id="totalWorkouts">0</strong></div><div class="stat"><small>Workouts logged</small><strong id="totalExercises">0</strong></div></div><div class="card" style="margin-top:13px"><h2>Personal records by workout</h2><div id="recordsList" class="empty">Log workouts to build your records.</div></div><div class="card"><h2>Weekly training volume</h2><p class="notice">Volume = weight × reps for logged sets. This is a simple comparison metric, not a measure of training quality.</p><div id="volumeList"></div></div><div class="card"><h2>Free Progress Insights</h2><p class="notice">This summary is generated locally from your saved workout records. No API key or paid AI connection is required.</p><div id="freeInsights" class="empty">Save workout records to see your progress summary here.</div><div class="actions"><button class="btn" id="makeGeminiPrompt">Prepare Gemini Prompt</button></div><p class="notice">Paste the prompt into your existing “Weight Target - 70kg” Gemini chat. It will not be sent automatically.</p><textarea id="geminiPrompt" rows="8" placeholder="Tap Prepare Gemini Prompt to create a summary from your workout history." style="width:100%;margin-top:8px"></textarea><div class="actions"><button class="btn secondary" id="copyGeminiPrompt">Copy Prompt</button></div></div></section>
 <section id="backup" class="hidden"><div class="card"><h2>Backup & restore</h2><p class="notice">Export a JSON backup regularly. Once Firebase is configured and you sign in, workout data can sync to your account across devices.</p><div class="actions"><button class="btn" id="exportBtn">Export backup (JSON)</button><label class="btn secondary" style="display:inline-flex;align-items:center">Import backup<input id="importFile" type="file" accept=".json,application/json" style="display:none"></label></div><button class="btn danger" id="wipeBtn" style="margin-top:14px">Delete all local data</button></div><div class="card"><h2>Cloud account & sync</h2>
 <p class="notice">Paste the Firebase Web App configuration values below. Then create an account or sign in. Use only your own Firebase project's config. This page must be hosted on HTTPS for reliable cross-device use.</p>
 <label for="fbApiKey">apiKey</label><input id="fbApiKey" autocomplete="off" placeholder="Firebase apiKey">
@@ -142,23 +157,102 @@ service cloud.firestore {
 </main>
 <script>
 const $=id=>document.getElementById(id); const STORE='personalGymTracker_v1';
-let db=load(), session={date:localDate(), exercises:[]}, draftSets=[], timerInt=null, timerLeft=90;
+let db=load(), session={date:localDate(), exercises:[]}, draftSets=[], draftSupersetSets=[], dropStageCount=3, timerInt=null, timerLeft=90;
 function localDate(){let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function load(){try{return JSON.parse(localStorage.getItem(STORE))||{workouts:[]}}catch(e){return {workouts:[]}}}
 function persist(){localStorage.setItem(STORE,JSON.stringify(db));renderAll();if(window.gymCloudSave)window.gymCloudSave(db)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function norm(s){return String(s||'').trim().toLowerCase()}
 function previous(name){let all=db.workouts.slice().sort((a,b)=>b.date.localeCompare(a.date));for(const w of all){for(const e of w.exercises||[]){if(norm(e.name)===norm(name))return {date:w.date,e}}}return null}
-function updatePrev(){let n=$('exname').value.trim(),p=previous(n);$('prevRef').textContent=p?`Previous: ${p.date} · ${p.e.sets.map(s=>`${s.weight} kg × ${s.reps}`).join(' / ')}`:'Enter an exercise name to see its most recent saved performance.'}
+function updatePrev(){let n=$('exname').value.trim(),p=previous(n);$('prevRef').textContent=p?`Previous: ${p.date} · ${p.e.sets.map(s=>`${s.weight} kg × ${s.reps}`).join(' / ')}`:'Enter a workout name to see its most recent saved performance.'}
 $('exname').addEventListener('input',updatePrev);
-function addSet(){let n=Number($('weight').value),r=Number($('reps').value);if(!$('exname').value.trim()){alert('Enter an exercise name first.');return}if($('weight').value===''||$('reps').value===''||n<0||r<0){alert('Enter a valid weight and rep count.');return}draftSets.push({weight:n,reps:r});renderDraft();$('weight').value='';$('reps').value='';$('weight').focus()}
-function renderDraft(){let box=$('sessionList');$('setCount').textContent=(session.exercises.reduce((a,e)=>a+e.sets.length,0)+draftSets.length)+' sets';let html='';if(draftSets.length)html+=`<div class="exercise"><strong>${esc($('exname').value)}</strong><div class="muted" style="font-size:12px">${esc($('muscle').value)} · ${esc($('machine').value||'Equipment not specified')}</div>${draftSets.map((s,i)=>`<div class="setrow"><span class="setnum">${i+1}</span><span>${s.weight} kg</span><span>${s.reps} reps</span><button class="btn danger small" onclick="removeDraft(${i})">×</button></div>`).join('')}<button class="btn secondary small" onclick="saveDraftExercise()">Save this exercise</button></div>`;for(let i=session.exercises.length-1;i>=0;i--){let e=session.exercises[i];html+=`<div class="exercise"><div class="exhead"><div><strong>${esc(e.name)}</strong><div class="muted" style="font-size:12px">${esc(e.muscle)} · ${esc(e.machine||'Equipment not specified')}</div></div><button class="btn danger small" onclick="removeExercise(${i})">Delete</button></div>${e.sets.map((s,j)=>`<div class="setrow"><span class="setnum">${j+1}</span><span>${s.weight} kg</span><span>${s.reps} reps</span><span></span></div>`).join('')}</div>`}box.innerHTML=html||'<div class="empty">No exercises saved in this session yet.</div>'}
-function removeDraft(i){draftSets.splice(i,1);renderDraft()}
-function saveDraftExercise(){if(!draftSets.length){alert('Add at least one set first.');return}session.exercises.push({muscle:$('muscle').value,name:$('exname').value.trim(),machine:$('machine').value.trim(),notes:$('notes').value.trim(),sets:draftSets.slice()});draftSets=[];$('exname').value='';$('machine').value='';$('notes').value='';updatePrev();renderDraft()}
+function selectedSetType(){return $('workoutType').value||'Normal'}
+function updateSetTypeUI(){
+ const type=selectedSetType();
+ $('primaryExerciseLabel').textContent=type==='Superset'?'First workout (Superset)':'Workout name';
+ $('supersetFields').classList.toggle('hidden',type!=='Superset');
+ $('dropSetFields').classList.toggle('hidden',type!=='Drop Set');
+ $('normalSetFields').classList.toggle('hidden',type==='Drop Set');
+ $('setTypeHelp').textContent=type==='Normal'
+  ?'Normal: each Add set records one normal set.'
+  :type==='Superset'
+   ?'Superset: enter both workouts. Each Add set records one round for both workouts.'
+   :'Drop Set: enter 3 stages by default. All stages are saved together as ONE set; add more stages if needed.';
+ renderDropStages();
+}
+function renderDropStages(){
+ const list=$('dropStageList');if(!list)return;
+ const old=Array.from(list.querySelectorAll('.drop-stage'),(_,i)=>({w:$('dropWeight'+i)?.value||'',r:$('dropReps'+i)?.value||''}));
+ list.innerHTML=Array.from({length:dropStageCount},(_,i)=>`<div class="drop-stage"><div class="drop-stage-number">${i+1}</div><div><label for="dropWeight${i}">Weight (kg)</label><input id="dropWeight${i}" type="number" min="0" step="0.5" placeholder="${[30,20,10][i]||'Weight'}"></div><div><label for="dropReps${i}">Reps</label><input id="dropReps${i}" type="number" min="0" step="1" placeholder="${[12,10,8][i]||'Reps'}"></div></div>`).join('');
+ old.slice(0,dropStageCount).forEach((v,i)=>{$('dropWeight'+i).value=v.w;$('dropReps'+i).value=v.r});
+}
+$('addDropStage').addEventListener('click',()=>{if(dropStageCount>=10){alert('A Drop Set can contain up to 10 stages.');return}const values=Array.from({length:dropStageCount},(_,i)=>({w:$('dropWeight'+i).value,r:$('dropReps'+i).value}));dropStageCount++;renderDropStages();values.forEach((v,i)=>{$('dropWeight'+i).value=v.w;$('dropReps'+i).value=v.r});});
+$('workoutType').addEventListener('change',updateSetTypeUI);
+function addSet(){
+ const type=selectedSetType();
+ if(!$('exname').value.trim()){alert('Enter a workout name first.');return}
+ if(type==='Drop Set'){
+  const stages=Array.from({length:dropStageCount},(_,i)=>({weight:$('dropWeight'+i).value===''?NaN:Number($('dropWeight'+i).value),reps:$('dropReps'+i).value===''?NaN:Number($('dropReps'+i).value)}));
+  if(stages.some(s=>!Number.isFinite(s.weight)||!Number.isFinite(s.reps)||s.weight<0||s.reps<0)){alert('Enter a valid weight and rep count for every Drop Set stage.');return}
+  draftSets.push({weight:stages[0].weight,reps:stages[0].reps,stages});
+  renderDraft();
+  for(let i=0;i<dropStageCount;i++){$('dropWeight'+i).value='';$('dropReps'+i).value=''}
+  $('dropWeight0').focus();return;
+ }
+ const n=$('weight').value===''?NaN:Number($('weight').value),r=$('reps').value===''?NaN:Number($('reps').value);
+ if(!Number.isFinite(n)||!Number.isFinite(r)||n<0||r<0){alert('Enter a valid weight and rep count.');return}
+ if(type==='Superset'){
+  const n2=$('weight2').value===''?NaN:Number($('weight2').value),r2=$('reps2').value===''?NaN:Number($('reps2').value);
+  if(!$('exname2').value.trim()){alert('Enter the second workout name for this superset.');return}
+  if(!Number.isFinite(n2)||!Number.isFinite(r2)||n2<0||r2<0){alert('Enter a valid second-exercise weight and rep count.');return}
+  draftSupersetSets.push({weight:n2,reps:r2});
+ }
+ draftSets.push({weight:n,reps:r});
+ renderDraft();
+ $('weight').value='';$('reps').value='';
+ if(type==='Superset'){$('weight2').value='';$('reps2').value='';$('weight2').focus()}
+ else $('weight').focus();
+}
+function renderDraft(){
+ let box=$('sessionList');
+ const totalDraft=draftSets.length+(selectedSetType()==='Superset'?draftSupersetSets.length:0);
+ $('setCount').textContent=(session.exercises.reduce((a,e)=>a+(e.sets||[]).length,0)+totalDraft)+' sets';
+ let html='';
+ if(draftSets.length){
+  const type=selectedSetType();
+  html+=`<div class="exercise"><strong>${esc($('exname').value)}</strong><div class="muted" style="font-size:12px">${esc($('muscle').value)} · ${esc($('machine').value||'Equipment not specified')} · ${esc(type)}</div>`;
+  html+=draftSets.map((s,i)=>`<div class="setrow"><span class="setnum">${i+1}</span><span>${s.stages?`Drop Set · ${s.stages.map(x=>`${x.weight} kg × ${x.reps}`).join(' → ')}`:`${s.weight} kg`}</span><span>${s.stages?`${s.stages.length} stages`:s.reps+' reps'}</span><button class="btn danger small" onclick="removeDraft(${i})">×</button></div>`).join('');
+  if(type==='Superset'){
+   html+=`<div class="muted" style="font-size:12px;margin-top:8px">Paired exercise: ${esc($('exname2').value||'Not named yet')} · ${esc($('machine2').value||'Equipment not specified')}</div>`;
+   html+=draftSupersetSets.map((s,i)=>`<div class="setrow"><span class="setnum">${i+1}</span><span>${s.weight} kg</span><span>${s.reps} reps</span><span></span></div>`).join('');
+  }
+  html+='<button class="btn secondary small" onclick="saveDraftExercise()">Save this exercise</button></div>';
+ }
+ for(let i=session.exercises.length-1;i>=0;i--){
+  let e=session.exercises[i];
+  html+=`<div class="exercise"><div class="exhead"><div><strong>${esc(e.name)}</strong><div class="muted" style="font-size:12px">${esc(e.muscle||'Other')} · ${esc(e.machine||'Equipment not specified')} · ${esc(e.setType||'Normal')}</div></div><button class="btn danger small" onclick="removeExercise(${i})">Delete</button></div>${(e.sets||[]).map((s,j)=>`<div class="setrow"><span class="setnum">${j+1}</span><span>${s.stages?`Drop Set · ${s.stages.map(x=>`${x.weight} kg × ${x.reps}`).join(' → ')}`:`${s.weight} kg`}</span><span>${s.stages?`${s.stages.length} stages`:s.reps+' reps'}</span><span></span></div>`).join('')}</div>`;
+ }
+ box.innerHTML=html||'<div class="empty">No workouts saved in this session yet.</div>';
+}
+function removeDraft(i){draftSets.splice(i,1);if(draftSupersetSets.length>i)draftSupersetSets.splice(i,1);renderDraft()}
+function saveDraftExercise(){
+ if(!draftSets.length){alert('Add at least one set first.');return}
+ const type=selectedSetType();
+ if(type==='Superset'&&(!draftSupersetSets.length||!$('exname2').value.trim())){alert('Complete both workouts in the superset first.');return}
+ const groupId=type==='Superset'?'superset-'+Date.now():null;
+ session.exercises.push({muscle:$('muscle').value,name:$('exname').value.trim(),machine:$('machine').value.trim(),notes:$('notes').value.trim(),setType:type,supersetGroup:groupId,sets:draftSets.map(s=>({...s}))});
+ if(type==='Superset'){
+  session.exercises.push({muscle:$('muscle').value,name:$('exname2').value.trim(),machine:$('machine2').value.trim(),notes:'Superset with '+$('exname').value.trim(),setType:type,supersetGroup:groupId,sets:draftSupersetSets.map(s=>({...s}))});
+ }
+ draftSets=[];draftSupersetSets=[];dropStageCount=3;renderDropStages();
+ $('exname').value='';$('machine').value='';$('notes').value='';
+ $('exname2').value='';$('machine2').value='';
+ updatePrev();renderDraft();
+}
 function removeExercise(i){session.exercises.splice(i,1);renderDraft()}
 $('addSet').onclick=addSet;$('addExercise').onclick=saveDraftExercise;
-$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one exercise before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};draftSets=[];renderDraft();persist();alert('Workout saved on this device. Export a backup regularly.')};
-$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};draftSets=[];renderDraft()}};
+$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one workout before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();persist();alert('Workout saved on this device. Export a backup regularly.')};
+$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft()}};
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['today','history','progress','backup'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));renderAll()});
 function allSets(w){return (w.exercises||[]).flatMap(e=>(e.sets||[]).map(s=>({...s,name:e.name,muscle:e.muscle,date:w.date})))}
 function renderHistory(){
@@ -178,24 +272,57 @@ function renderHistory(){
        <div class="fw-history-metrics"><span class="fw-history-chip">${exercises.length} ${exercises.length===1?'exercise':'exercises'}</span><span class="fw-history-chip">${setCount} sets</span>${groups.map(g=>`<span class="fw-history-chip">${esc(g)}</span>`).join('')}</div>
      </div><button class="btn danger small" onclick="deleteWorkout(${Number(w.id)})" aria-label="Delete workout on ${esc(w.date)}">Delete</button></div>
      <button type="button" class="fw-history-toggle" aria-expanded="false" aria-controls="${detailId}" onclick="toggleHistoryDetails(this)"><span>View exercises and sets</span><span class="fw-history-chevron" aria-hidden="true">⌄</span></button>
-     <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div>${comparisonMarkup(w,e)}</div>`).join('')}</div>
+     <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')} · ${esc(e.setType||'Normal')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>set.stages?`Drop Set ${i+1}: ${set.stages.map(st=>`${esc(st.weight)} kg × ${esc(st.reps)} reps`).join(' → ')}`:`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div>${comparisonMarkup(w,e)}</div>`).join('')}</div>
    </article>`
  }).join(''):'<div class="empty">'+(filter==='all'?'Your saved sessions will appear here.':`No saved workouts found for ${esc(filter)}. Try another muscle group or choose All muscle groups.`)+'</div>';
 }
 function toggleHistoryDetails(button){const panel=$(button.getAttribute('aria-controls'));if(!panel)return;const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));panel.classList.toggle('hidden',expanded);button.querySelector('span').textContent=expanded?'View exercises and sets':'Hide exercise details'}
 
 // Compare each logged exercise with its most recent earlier occurrence without changing saved workout data.
-function strongestSet(exercise){const sets=(exercise?.sets||[]).filter(s=>Number.isFinite(Number(s.weight))&&Number.isFinite(Number(s.reps)));if(!sets.length)return null;return sets.reduce((best,s)=>!best||Number(s.weight)>Number(best.weight)||(Number(s.weight)===Number(best.weight)&&Number(s.reps)>Number(best.reps))?s:best,null)}
+function strongestSet(exercise){const sets=(exercise?.sets||[]).flatMap(s=>Array.isArray(s.stages)?s.stages:s).filter(s=>Number.isFinite(Number(s.weight))&&Number.isFinite(Number(s.reps)));if(!sets.length)return null;return sets.reduce((best,s)=>!best||Number(s.weight)>Number(best.weight)||(Number(s.weight)===Number(best.weight)&&Number(s.reps)>Number(best.reps))?s:best,null)}
 function previousExerciseFor(workout,exercise){const ordered=db.workouts.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||Number(a.id)-Number(b.id));const idx=ordered.findIndex(w=>String(w.id)===String(workout.id));if(idx<0)return null;for(let i=idx-1;i>=0;i--){const match=(ordered[i].exercises||[]).find(e=>norm(e.name)===norm(exercise.name));if(match)return {date:ordered[i].date,exercise:match}}return null}
 function comparisonMarkup(workout,exercise){const prev=previousExerciseFor(workout,exercise);if(!prev)return '<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">First saved session for this exercise — the next session will be compared here.</div></div>';const now=strongestSet(exercise),before=strongestSet(prev.exercise);if(!now||!before)return `<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">Previous session: ${esc(prev.date)} · Set details unavailable.</div></div>`;const weightDiff=Number(now.weight)-Number(before.weight),repDiff=Number(now.reps)-Number(before.reps);const fmt=n=>(n>0?'+':'')+String(Number(n.toFixed(2)));return `<div class="fw-compare"><strong>Previous workout comparison</strong><div class="fw-compare-note">Previous · ${esc(prev.date)}: ${esc(before.weight)} kg × ${esc(before.reps)} reps</div><div class="fw-compare-current">Current best set: ${esc(now.weight)} kg × ${esc(now.reps)} reps</div><div class="fw-compare-delta">Weight ${esc(fmt(weightDiff))} kg · Reps ${esc(fmt(repDiff))}</div></div>`}
 
 function deleteWorkout(id){if(confirm('Delete this saved workout?')){db.workouts=db.workouts.filter(w=>w.id!==id);persist()}}
 function renderProgress(){let now=new Date(),start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));let week=db.workouts.filter(w=>new Date(w.date+'T12:00:00')>=start);$('weekWorkouts').textContent=week.length;$('weekSets').textContent=week.reduce((n,w)=>n+allSets(w).length,0);$('totalWorkouts').textContent=db.workouts.length;$('totalExercises').textContent=db.workouts.reduce((n,w)=>n+w.exercises.length,0);
-let best={};db.workouts.forEach(w=>(w.exercises||[]).forEach(e=>(e.sets||[]).forEach(s=>{let k=e.name.trim();if(!k)return;if(!best[k]||s.weight>best[k].weight||(s.weight===best[k].weight&&s.reps>best[k].reps))best[k]={weight:s.weight,reps:s.reps,date:w.date}})));
+let best={};db.workouts.forEach(w=>(w.exercises||[]).forEach(e=>(e.sets||[]).flatMap(s=>Array.isArray(s.stages)?s.stages:[s]).forEach(s=>{let k=e.name.trim();if(!k)return;if(!best[k]||s.weight>best[k].weight||(s.weight===best[k].weight&&s.reps>best[k].reps))best[k]={weight:s.weight,reps:s.reps,date:w.date}})));
 let entries=Object.entries(best).sort((a,b)=>b[1].weight-a[1].weight);$('recordsList').innerHTML=entries.length?entries.map(([n,v])=>`<div class="historyitem"><strong>${esc(n)}</strong><div>${v.weight} kg × ${v.reps} reps <span class="muted">· ${esc(v.date)}</span></div></div>`).join(''):'<div class="empty">Log workouts to build your records.</div>';
-let vols={};db.workouts.forEach(w=>{let d=w.date;vols[d]=(vols[d]||0)+allSets(w).reduce((n,s)=>n+s.weight*s.reps,0)});let v=Object.entries(vols).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).reverse(),max=Math.max(1,...v.map(x=>x[1]));$('volumeList').innerHTML=v.length?v.map(([d,n])=>`<div style="margin:12px 0"><div class="headrow"><span>${esc(d)}</span><strong>${Math.round(n).toLocaleString()} kg·reps</strong></div><div class="bar"><span style="width:${Math.max(2,n/max*100)}%"></span></div></div>`).join(''):'<div class="empty">No volume data yet.</div>'}
-function renderAll(){renderHistory();renderProgress()}
-$('todayDate').textContent=localDate();$('historyMuscleFilter')?.addEventListener('change',renderHistory);renderDraft();renderAll();
+let vols={};db.workouts.forEach(w=>{let d=w.date;vols[d]=(vols[d]||0)+(w.exercises||[]).reduce((total,e)=>total+(e.sets||[]).reduce((sum,s)=>sum+(Array.isArray(s.stages)?s.stages.reduce((stageSum,st)=>stageSum+Number(st.weight)*Number(st.reps),0):Number(s.weight)*Number(s.reps)),0),0)});let v=Object.entries(vols).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).reverse(),max=Math.max(1,...v.map(x=>x[1]));$('volumeList').innerHTML=v.length?v.map(([d,n])=>`<div style="margin:12px 0"><div class="headrow"><span>${esc(d)}</span><strong>${Math.round(n).toLocaleString()} kg·reps</strong></div><div class="bar"><span style="width:${Math.max(2,n/max*100)}%"></span></div></div>`).join(''):'<div class="empty">No volume data yet.</div>'}
+function renderFreeInsights(){
+ const workouts=(db.workouts||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const target=$('freeInsights');
+ if(!workouts.length){target.innerHTML='<div class="empty">No workout records yet. Save a workout first.</div>';return}
+ const today=new Date();today.setHours(0,0,0,0);
+ const daysSince=d=>Math.floor((today-new Date(String(d)+'T12:00:00'))/86400000);
+ const last7=workouts.filter(w=>daysSince(w.date)>=0&&daysSince(w.date)<7);
+ const last28=workouts.filter(w=>daysSince(w.date)>=0&&daysSince(w.date)<28);
+ const recent14=workouts.filter(w=>daysSince(w.date)>=0&&daysSince(w.date)<14);
+ const setCount=w=>(w.exercises||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
+ const setVolume=s=>Array.isArray(s.stages)?s.stages.reduce((n,st)=>n+(Number(st.weight)||0)*(Number(st.reps)||0),0):(Number(s.weight)||0)*(Number(s.reps)||0);
+ const volume=w=>(w.exercises||[]).reduce((n,e)=>n+(e.sets||[]).reduce((a,s)=>a+setVolume(s),0),0);
+ const recentVolume=recent14.filter(w=>daysSince(w.date)<7).reduce((n,w)=>n+volume(w),0);
+ const priorVolume=recent14.filter(w=>daysSince(w.date)>=7).reduce((n,w)=>n+volume(w),0);
+ const avgSets=last28.length?(last28.reduce((n,w)=>n+setCount(w),0)/last28.length).toFixed(1):'0';
+ const lines=[];
+ lines.push(`<div class="historyitem"><strong>Consistency</strong><div>${last7.length} workout session(s) in the last 7 days; ${last28.length} in the last 28 days.</div></div>`);
+ lines.push(`<div class="historyitem"><strong>Training workload</strong><div>${last7.reduce((n,w)=>n+setCount(w),0)} logged set(s) in the last 7 days. Average ${avgSets} sets per session over the last 28 days.</div></div>`);
+ if(priorVolume>0){const pct=Math.round((recentVolume-priorVolume)/priorVolume*100);lines.push(`<div class="historyitem"><strong>Volume comparison</strong><div>Last 7 days vs. the previous 7 days: ${pct>=0?'+':''}${pct}% logged volume (weight × reps). This metric alone does not measure workout quality.</div></div>`)}
+ else lines.push('<div class="historyitem"><strong>Volume comparison</strong><div>Not enough logged volume from the previous 7 days to compare yet.</div></div>');
+ const last=workouts[workouts.length-1];
+ lines.push(`<div class="historyitem"><strong>Latest workout session</strong><div>${esc(last.date)} · ${(last.exercises||[]).length} workout entries · ${setCount(last)} set(s).</div></div>`);
+ lines.push('<p class="notice">This summary uses recorded data only. It does not guess missing information or guarantee muscle gain or fat loss.</p>');
+ target.innerHTML=lines.join('');
+}
+function buildGeminiPrompt(){
+ const workouts=(db.workouts||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).slice(-30);
+ if(!workouts.length){alert('Save at least one workout first.');return ''}
+ const compact=workouts.map(w=>({date:w.date,workouts:(w.exercises||[]).map(e=>({name:e.name,muscleGroup:e.muscle,machine:e.machine||'',setType:e.setType||'Normal',supersetGroup:e.supersetGroup||null,notes:e.notes||'',sets:(e.sets||[]).map(s=>Array.isArray(s.stages)?{stages:s.stages.map(st=>({weight:Number(st.weight)||0,reps:Number(st.reps)||0}))}:{weight:Number(s.weight)||0,reps:Number(s.reps)||0})}))}));
+ return `Analyze the following workout records from my Fit World Gym Tracker. Give a clear, practical progress analysis in English.\n\nRequirements:\n1. Assess training consistency using only the dates provided.\n2. Describe workout-specific weight/repetition changes only when the records clearly support them.\n3. Give 2–4 practical suggestions for upcoming workouts.\n4. Offer only general, safe recovery advice.\n5. Do not invent body weight, diet, goals, missing sets, or other data. Clearly state when the records are insufficient.\n6. Do not claim that these records alone prove muscle gain or fat loss.\n7. Treat a Drop Set's listed stages as one set with multiple stages, not as separate sets. Treat the two entries with the same supersetGroup as one paired superset round when summarizing.\n8. Explain logged training volume as weight × reps, including all drop-set stages, and note that it is only a simple comparison metric.\n\nWorkout records (JSON; up to the latest 30 sessions):\n${JSON.stringify(compact,null,2)}`;
+}
+function renderAll(){renderHistory();renderProgress();renderFreeInsights()}
+$('todayDate').textContent=localDate();$('historyMuscleFilter')?.addEventListener('change',renderHistory);updateSetTypeUI();renderDraft();renderAll();
+$('makeGeminiPrompt').onclick=()=>{const prompt=buildGeminiPrompt();if(prompt){$('geminiPrompt').value=prompt;$('geminiPrompt').focus();$('geminiPrompt').select()}};
+$('copyGeminiPrompt').onclick=async()=>{const el=$('geminiPrompt');if(!el.value.trim()){alert('Tap Prepare Gemini Prompt first.');return}try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(el.value);alert('Prompt copied. Paste it into your Gemini chat.')}else{el.focus();el.select();const ok=document.execCommand('copy');alert(ok?'Prompt copied. Paste it into your Gemini chat.':'Prompt selected. Use Copy from the text selection menu.')}}catch(err){el.focus();el.select();alert('Prompt selected. Use Copy from the text selection menu.')}};
 function showTimer(){let m=Math.floor(timerLeft/60),s=timerLeft%60;$('timerDisplay').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 $('timerStart').onclick=()=>{if(timerInt){clearInterval(timerInt);timerInt=null;$('timerStart').textContent='Resume';return}if(timerLeft<=0)timerLeft=Math.max(1,Number($('timerSecs').value)||90);$('timerStart').textContent='Pause';timerInt=setInterval(()=>{timerLeft--;showTimer();if(timerLeft<=0){clearInterval(timerInt);timerInt=null;$('timerStart').textContent='Start';if(navigator.vibrate)navigator.vibrate([250,100,250]);alert('Rest finished! Ready for your next set?')}},1000)};
 $('timerReset').onclick=()=>{clearInterval(timerInt);timerInt=null;timerLeft=Math.max(1,Number($('timerSecs').value)||90);$('timerStart').textContent='Start';showTimer()};$('timerSecs').onchange=()=>{if(!timerInt){timerLeft=Math.max(1,Number($('timerSecs').value)||90);showTimer()}};showTimer();
