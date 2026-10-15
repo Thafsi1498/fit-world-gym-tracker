@@ -269,14 +269,14 @@ function renderHistory(){
    return `<article class="historyitem">
      <div class="fw-history-card-head"><div>
        <div class="fw-history-date">${esc(w.date)}</div>
-       <div class="fw-history-metrics"><span class="fw-history-chip">${exercises.length} ${exercises.length===1?'exercise':'exercises'}</span><span class="fw-history-chip">${setCount} sets</span>${groups.map(g=>`<span class="fw-history-chip">${esc(g)}</span>`).join('')}</div>
+       <div class="fw-history-metrics"><span class="fw-history-chip">${exercises.length} ${exercises.length===1?'workout':'workouts'}</span><span class="fw-history-chip">${setCount} sets</span>${groups.map(g=>`<span class="fw-history-chip">${esc(g)}</span>`).join('')}</div>
      </div><button class="btn danger small" onclick="deleteWorkout(${Number(w.id)})" aria-label="Delete workout on ${esc(w.date)}">Delete</button></div>
-     <button type="button" class="fw-history-toggle" aria-expanded="false" aria-controls="${detailId}" onclick="toggleHistoryDetails(this)"><span>View exercises and sets</span><span class="fw-history-chevron" aria-hidden="true">⌄</span></button>
+     <button type="button" class="fw-history-toggle" aria-expanded="false" aria-controls="${detailId}" onclick="toggleHistoryDetails(this)"><span>View workouts and sets</span><span class="fw-history-chevron" aria-hidden="true">⌄</span></button>
      <div class="fw-history-details hidden" id="${detailId}">${exercises.map(e=>`<div class="fw-history-exercise"><div class="fw-history-exercise-name">${esc(e.name)} <span class="muted" style="font-weight:500">(${esc(e.muscle||'Other')} · ${esc(e.setType||'Normal')})</span></div><div class="fw-history-exercise-meta">${(e.sets||[]).map((set,i)=>set.stages?`Drop Set ${i+1}: ${set.stages.map(st=>`${esc(st.weight)} kg × ${esc(st.reps)} reps`).join(' → ')}`:`Set ${i+1}: ${esc(set.weight)} kg × ${esc(set.reps)} reps`).join(' · ')||'No sets recorded'}</div>${comparisonMarkup(w,e)}</div>`).join('')}</div>
    </article>`
  }).join(''):'<div class="empty">'+(filter==='all'?'Your saved sessions will appear here.':`No saved workouts found for ${esc(filter)}. Try another muscle group or choose All muscle groups.`)+'</div>';
 }
-function toggleHistoryDetails(button){const panel=$(button.getAttribute('aria-controls'));if(!panel)return;const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));panel.classList.toggle('hidden',expanded);button.querySelector('span').textContent=expanded?'View exercises and sets':'Hide exercise details'}
+function toggleHistoryDetails(button){const panel=$(button.getAttribute('aria-controls'));if(!panel)return;const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));panel.classList.toggle('hidden',expanded);button.querySelector('span').textContent=expanded?'View workouts and sets':'Hide workout details'}
 
 // Compare each logged exercise with its most recent earlier occurrence without changing saved workout data.
 function strongestSet(exercise){const sets=(exercise?.sets||[]).flatMap(s=>Array.isArray(s.stages)?s.stages:s).filter(s=>Number.isFinite(Number(s.weight))&&Number.isFinite(Number(s.reps)));if(!sets.length)return null;return sets.reduce((best,s)=>!best||Number(s.weight)>Number(best.weight)||(Number(s.weight)===Number(best.weight)&&Number(s.reps)>Number(best.reps))?s:best,null)}
