@@ -189,10 +189,45 @@ service cloud.firestore {
 </main>
 <script>
 const $=id=>document.getElementById(id); const STORE='personalGymTracker_v1';
+const ACTIVE_DRAFT_KEY='repforge_active_workout_draft_v1';
 let db=load(), session={date:localDate(), exercises:[]}, draftSets=[], draftSupersetSets=[], dropStageCount=3, timerInt=null, timerLeft=90;
+let restoringDraft=false, draftSaveQueued=false;
 function localDate(){let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function load(){try{return JSON.parse(localStorage.getItem(STORE))||{workouts:[]}}catch(e){return {workouts:[]}}}
 function persist(){localStorage.setItem(STORE,JSON.stringify(db));renderAll();if(window.gymCloudSave)window.gymCloudSave(db)}
+
+function saveActiveDraft(){
+ if(restoringDraft)return;
+ try{
+  const form={};
+  ['workoutType','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{const el=$(id);if(el)form[id]=el.value;});
+  form.dropStageCount=dropStageCount;
+  form.dropStages=Array.from({length:dropStageCount},(_,i)=>({weight:$('dropWeight'+i)?.value||'',reps:$('dropReps'+i)?.value||''}));
+  const draft={version:1,updatedAt:Date.now(),session,draftSets,draftSupersetSets,form,activeTab:document.querySelector('.tab.active')?.dataset.tab||'today'};
+  localStorage.setItem(ACTIVE_DRAFT_KEY,JSON.stringify(draft));
+ }catch(e){console.warn('Active workout draft save failed',e);}
+}
+function scheduleDraftSave(){if(restoringDraft||draftSaveQueued)return;draftSaveQueued=true;Promise.resolve().then(()=>{draftSaveQueued=false;saveActiveDraft();});}
+function restoreActiveDraft(){
+ let d=null;try{d=JSON.parse(localStorage.getItem(ACTIVE_DRAFT_KEY)||'null')}catch(e){}
+ if(!d||d.version!==1)return false;
+ restoringDraft=true;
+ try{
+  if(d.session&&Array.isArray(d.session.exercises))session=d.session;
+  if(Array.isArray(d.draftSets))draftSets=d.draftSets;
+  if(Array.isArray(d.draftSupersetSets))draftSupersetSets=d.draftSupersetSets;
+  const f=d.form||{};dropStageCount=Math.min(10,Math.max(3,Number(f.dropStageCount)||3));
+  if(f.workoutType&&$('workoutType'))$('workoutType').value=f.workoutType;
+  updateSetTypeUI();
+  ['muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{if($(id)&&f[id]!==undefined)$(id).value=f[id];});
+  renderDropStages();
+  (f.dropStages||[]).forEach((v,i)=>{if($('dropWeight'+i))$('dropWeight'+i).value=v.weight||'';if($('dropReps'+i))$('dropReps'+i).value=v.reps||'';});
+  updatePrev();renderDraft();
+  const tab=d.activeTab;if(tab&&['today','history','progress','backup'].includes(tab)){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['today','history','progress','backup'].forEach(id=>$(id).classList.toggle('hidden',id!==tab));}
+  return true;
+ }catch(e){console.warn('Active workout draft restore failed',e);return false;}finally{restoringDraft=false;}
+}
+
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function norm(s){return String(s||'').trim().toLowerCase()}
 function previous(name){let all=db.workouts.slice().sort((a,b)=>b.date.localeCompare(a.date));for(const w of all){for(const e of w.exercises||[]){if(norm(e.name)===norm(name))return {date:w.date,e}}}return null}
@@ -227,7 +262,7 @@ function addSet(){
   const stages=Array.from({length:dropStageCount},(_,i)=>({weight:$('dropWeight'+i).value===''?NaN:Number($('dropWeight'+i).value),reps:$('dropReps'+i).value===''?NaN:Number($('dropReps'+i).value)}));
   if(stages.some(s=>!Number.isFinite(s.weight)||!Number.isFinite(s.reps)||s.weight<0||s.reps<0)){alert('Enter a valid weight and rep count for every Drop Set stage.');return}
   draftSets.push({weight:stages[0].weight,reps:stages[0].reps,stages});
-  renderDraft();
+  renderDraft(); saveActiveDraft();
   for(let i=0;i<dropStageCount;i++){$('dropWeight'+i).value='';$('dropReps'+i).value=''}
   $('dropWeight0').focus();return;
  }
@@ -240,7 +275,7 @@ function addSet(){
   draftSupersetSets.push({weight:n2,reps:r2});
  }
  draftSets.push({weight:n,reps:r});
- renderDraft();
+ renderDraft(); saveActiveDraft();
  $('weight').value='';$('reps').value='';
  if(type==='Superset'){$('weight2').value='';$('reps2').value='';$('weight2').focus()}
  else $('weight').focus();
@@ -282,7 +317,7 @@ function renderDraft(){
  }
  box.innerHTML=html||'<div class="empty">No workouts saved in this session yet.</div>';
 }
-function removeDraft(i){draftSets.splice(i,1);if(draftSupersetSets.length>i)draftSupersetSets.splice(i,1);renderDraft()}
+function removeDraft(i){draftSets.splice(i,1);if(draftSupersetSets.length>i)draftSupersetSets.splice(i,1);renderDraft();saveActiveDraft()}
 function saveDraftExercise(){
  if(!draftSets.length){alert('Add at least one set first.');return}
  const type=selectedSetType();
@@ -295,12 +330,12 @@ function saveDraftExercise(){
  draftSets=[];draftSupersetSets=[];dropStageCount=3;renderDropStages();
  $('exname').value='';$('machine').value='';$('notes').value='';
  $('exname2').value='';$('machine2').value='';
- updatePrev();renderDraft();
+ updatePrev();renderDraft();saveActiveDraft();
 }
-function removeExercise(i){session.exercises.splice(i,1);renderDraft()}
+function removeExercise(i){session.exercises.splice(i,1);renderDraft();saveActiveDraft()}
 $('addSet').onclick=addSet;$('addExercise').onclick=saveDraftExercise;
-$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one workout before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();persist();alert('Workout saved on this device. Export a backup regularly.')};
-$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft()}};
+$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one workout before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY);persist();alert('Workout saved on this device. Export a backup regularly.')};
+$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY)}};
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['today','history','progress','backup'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));renderAll()});
 function allSets(w){return (w.exercises||[]).flatMap(e=>(e.sets||[]).map(s=>({...s,name:e.name,muscle:e.muscle,date:w.date})))}
 function renderHistory(){
@@ -378,7 +413,14 @@ function buildGeminiPrompt(){
  return `Analyze the following workout records from my RepForge Fitness Tracker. Give a clear, practical progress analysis in English.\n\nRequirements:\n1. Assess training consistency using only the dates provided.\n2. Describe workout-specific weight/repetition changes only when the records clearly support them.\n3. Give 2–4 practical suggestions for upcoming workouts.\n4. Offer only general, safe recovery advice.${common}\n\nWorkout records (JSON; up to the latest 30 sessions):\n${JSON.stringify(compact,null,2)}`;
 }
 function renderAll(){renderHistory();renderProgress();renderFreeInsights()}
-$('todayDate').textContent=localDate();$('historyMuscleFilter')?.addEventListener('change',renderHistory);updateSetTypeUI();renderDraft();renderAll();
+$('todayDate').textContent=localDate();
+$('historyMuscleFilter')?.addEventListener('change',renderHistory);
+updateSetTypeUI();restoreActiveDraft();renderDraft();renderAll();
+document.addEventListener('input',ev=>{if(ev.target&&(ev.target.closest('#today')||ev.target.id?.startsWith('dropWeight')||ev.target.id?.startsWith('dropReps')))scheduleDraftSave();});
+document.addEventListener('change',ev=>{if(ev.target&&ev.target.closest('#today'))scheduleDraftSave();});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveActiveDraft();});
+window.addEventListener('pagehide',saveActiveDraft);
+window.addEventListener('beforeunload',saveActiveDraft);
 $('geminiPromptMode').onchange=()=>{$('geminiMuscleWrap').classList.toggle('hidden',$('geminiPromptMode').value!=='muscle')};$('geminiPromptMode').onchange();
 $('makeGeminiPrompt').onclick=()=>{const prompt=buildGeminiPrompt();if(prompt){$('geminiPrompt').value=prompt;$('geminiPrompt').focus();$('geminiPrompt').select()}};
 $('copyGeminiPrompt').onclick=async()=>{const el=$('geminiPrompt');if(!el.value.trim()){alert('Tap Prepare Gemini Prompt first.');return}try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(el.value);alert('Prompt copied. Paste it into your Gemini chat.')}else{el.focus();el.select();const ok=document.execCommand('copy');alert(ok?'Prompt copied. Paste it into your Gemini chat.':'Prompt selected. Use Copy from the text selection menu.')}}catch(err){el.focus();el.select();alert('Prompt selected. Use Copy from the text selection menu.')}};
