@@ -152,7 +152,7 @@ input,select,textarea{background:#111713!important;border-color:#3b4b3e!importan
   <div class="grid"><div><label for="exname2">Second workout (Superset)</label><input id="exname2" placeholder="e.g. Cable Fly"></div><div><label for="machine2">Second machine / equipment</label><input id="machine2" placeholder="e.g. Cable machine"></div></div>
   <div class="grid"><div><label for="weight2">Second workout weight (kg)</label><input id="weight2" type="number" min="0" step="0.5" placeholder="15"></div><div><label for="reps2">Second workout reps</label><input id="reps2" type="number" min="0" step="1" placeholder="12"></div></div>
 </div>
-<div id="dropSetFields" class="hidden"><h3 style="margin:12px 0 4px">Drop Set Stages</h3><p class="notice">Enter 3 stages by default. All stages together count as ONE set. Use Add more stage if needed.</p><div id="dropStageList" class="drop-stage-list"></div><div class="actions drop-stage-actions"><button type="button" class="btn secondary" id="addDropStage">+ Add more stage</button></div></div>
+<div id="dropSetFields" class="hidden"><h3 style="margin:12px 0 4px">Drop Set Stages</h3><p class="notice">Enter 3 stages by default. All stages together count as ONE set. Use Add more stage if needed.</p><div id="dropStageList" class="drop-stage-list"></div><div class="actions drop-stage-actions"><button type="button" class="btn secondary" id="addDropStage">+ Add more stage</button><button type="button" class="btn secondary" id="resetDropStages">Reset to 3 stages</button></div></div>
 <label for="notes">Notes (optional)</label><input id="notes" placeholder="Seat setting, form notes, etc.">
 <div class="actions"><button class="btn" id="addSet">+ Add set</button><button class="btn secondary" id="addExercise">Save workout</button></div>
 <p class="notice" id="prevRef">Previous workout reference will appear here when you enter a workout name.</p>
@@ -250,10 +250,15 @@ function updateSetTypeUI(){
 function renderDropStages(){
  const list=$('dropStageList');if(!list)return;
  const old=Array.from(list.querySelectorAll('.drop-stage'),(_,i)=>({w:$('dropWeight'+i)?.value||'',r:$('dropReps'+i)?.value||''}));
- list.innerHTML=Array.from({length:dropStageCount},(_,i)=>`<div class="drop-stage"><div class="drop-stage-number">${i+1}</div><div><label for="dropWeight${i}">Weight (kg)</label><input id="dropWeight${i}" type="number" min="0" step="0.5" placeholder="${[30,20,10][i]||'Weight'}"></div><div><label for="dropReps${i}">Reps</label><input id="dropReps${i}" type="number" min="0" step="1" placeholder="${[12,10,8][i]||'Reps'}"></div></div>`).join('');
+ list.innerHTML=Array.from({length:dropStageCount},(_,i)=>`<div class="drop-stage"><div class="drop-stage-number">${i+1}</div><div><label for="dropWeight${i}">Weight (kg)</label><input id="dropWeight${i}" type="number" min="0" step="0.5" placeholder="${[30,20,10][i]||'Weight'}"></div><div><label for="dropReps${i}">Reps</label><input id="dropReps${i}" type="number" min="0" step="1" placeholder="${[12,10,8][i]||'Reps'}"></div>${i>=3?`<button type="button" class="btn danger small drop-stage-remove" data-remove-stage="${i}" aria-label="Remove stage ${i+1}" title="Remove stage ${i+1}">✕</button>`:'<span></span>'}</div>`).join('');
  old.slice(0,dropStageCount).forEach((v,i)=>{$('dropWeight'+i).value=v.w;$('dropReps'+i).value=v.r});
+ list.querySelectorAll('[data-remove-stage]').forEach(btn=>btn.addEventListener('click',()=>removeDropStage(Number(btn.dataset.removeStage))));
 }
-$('addDropStage').addEventListener('click',()=>{if(dropStageCount>=10){alert('A Drop Set can contain up to 10 stages.');return}const values=Array.from({length:dropStageCount},(_,i)=>({w:$('dropWeight'+i).value,r:$('dropReps'+i).value}));dropStageCount++;renderDropStages();values.forEach((v,i)=>{$('dropWeight'+i).value=v.w;$('dropReps'+i).value=v.r});});
+function getDropStageValues(){return Array.from({length:dropStageCount},(_,i)=>({w:$('dropWeight'+i)?.value||'',r:$('dropReps'+i)?.value||''}));}
+function setDropStageCount(nextCount){const values=getDropStageValues();dropStageCount=Math.max(3,Math.min(10,nextCount));renderDropStages();values.slice(0,dropStageCount).forEach((v,i)=>{if($('dropWeight'+i))$('dropWeight'+i).value=v.w;if($('dropReps'+i))$('dropReps'+i).value=v.r});saveActiveDraft();}
+function removeDropStage(index){if(index<3||dropStageCount<=3)return;const values=getDropStageValues();values.splice(index,1);dropStageCount=Math.max(3,dropStageCount-1);renderDropStages();values.slice(0,dropStageCount).forEach((v,i)=>{if($('dropWeight'+i))$('dropWeight'+i).value=v.w;if($('dropReps'+i))$('dropReps'+i).value=v.r});saveActiveDraft();}
+$('addDropStage').addEventListener('click',()=>{if(dropStageCount>=10){alert('A Drop Set can contain up to 10 stages.');return}const values=getDropStageValues();dropStageCount++;renderDropStages();values.forEach((v,i)=>{$('dropWeight'+i).value=v.w;$('dropReps'+i).value=v.r});saveActiveDraft();});
+$('resetDropStages').addEventListener('click',()=>{if(dropStageCount<=3)return;setDropStageCount(3);});
 $('workoutType').addEventListener('change',updateSetTypeUI);
 function addSet(){
  const type=selectedSetType();
