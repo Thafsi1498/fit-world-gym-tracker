@@ -395,15 +395,16 @@ function comparisonMarkup(workout,exercise){const prev=previousExerciseFor(worko
 function editWorkoutDate(id){
  const workout=db.workouts.find(w=>String(w.id)===String(id));
  if(!workout){alert('Saved workout not found. Refresh the app and try again.');return;}
- const chosen=prompt('Enter the correct workout date (YYYY-MM-DD):',String(workout.date||localDate()));
- if(chosen===null)return;
- const date=chosen.trim();
- if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please use YYYY-MM-DD format, for example 2026-10-24.');return;}
- const parsed=new Date(date+'T12:00:00');
- if(Number.isNaN(parsed.getTime())||parsed.getFullYear()!==Number(date.slice(0,4))||(parsed.getMonth()+1)!==Number(date.slice(5,7))||parsed.getDate()!==Number(date.slice(8,10))){alert('That date is not valid. Please check the year, month and day.');return;}
- workout.date=date;
- persist();
- alert('Workout date updated to '+date+'.');
+ // Use an in-page dialog instead of window.prompt, which may be blocked in installed PWAs/mobile browsers.
+ document.getElementById('fwDateEditDialog')?.remove();
+ const overlay=document.createElement('div');overlay.id='fwDateEditDialog';
+ overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+ overlay.innerHTML=`<form id="fwDateEditForm" style="width:100%;max-width:380px;background:#17231b;border:1px solid #526b54;border-radius:18px;padding:22px;color:#f2f6ef;box-shadow:0 16px 48px #0009;font-family:inherit"><h2 style="margin:0 0 8px;font-size:21px">Edit workout date</h2><p style="margin:0 0 16px;color:#b6c5b8;font-size:14px">Choose the correct date for this saved workout.</p><label for="fwWorkoutDateInput" style="display:block;margin-bottom:7px">Workout date</label><input id="fwWorkoutDateInput" type="date" required value="${String(workout.date||localDate()).replace(/[^0-9-]/g,'')}" style="box-sizing:border-box;width:100%;padding:13px;border-radius:10px;border:1px solid #526b54;background:#0d1710;color:#fff;font:inherit;color-scheme:dark"><div id="fwDateEditError" style="color:#ffb1a8;font-size:13px;margin-top:8px;display:none"></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px"><button type="button" id="fwDateEditCancel" class="btn secondary">Cancel</button><button type="submit" class="btn">Save date</button></div></form>`;
+ document.body.appendChild(overlay);
+ const form=overlay.querySelector('#fwDateEditForm'),input=overlay.querySelector('#fwWorkoutDateInput'),error=overlay.querySelector('#fwDateEditError');
+ overlay.querySelector('#fwDateEditCancel').onclick=()=>overlay.remove();
+ overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+ form.onsubmit=e=>{e.preventDefault();const date=input.value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){error.textContent='Please choose a valid date.';error.style.display='block';return;}const parsed=new Date(date+'T12:00:00');if(Number.isNaN(parsed.getTime())||parsed.getFullYear()!==Number(date.slice(0,4))||(parsed.getMonth()+1)!==Number(date.slice(5,7))||parsed.getDate()!==Number(date.slice(8,10))){error.textContent='That date is not valid. Please check the year, month and day.';error.style.display='block';return;}workout.date=date;overlay.remove();persist();alert('Workout date updated to '+date+'.');};
 }
 function deleteWorkout(id){if(confirm('Delete this saved workout?')){db.workouts=db.workouts.filter(w=>String(w.id)!==String(id));persist()}}
 function renderProgress(){let now=new Date(),start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));let week=db.workouts.filter(w=>new Date(w.date+'T12:00:00')>=start);$('weekWorkouts').textContent=week.length;$('weekSets').textContent=week.reduce((n,w)=>n+allSets(w).length,0);$('totalWorkouts').textContent=db.workouts.length;$('totalExercises').textContent=db.workouts.reduce((n,w)=>n+w.exercises.length,0);
