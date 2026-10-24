@@ -134,6 +134,7 @@ input,select,textarea{background:#111713!important;border-color:#3b4b3e!importan
 <nav class="tabs"><button class="tab active" data-tab="today">Workout</button><button class="tab" data-tab="history">History</button><button class="tab" data-tab="progress">Progress</button><button class="tab" data-tab="backup">Backup</button></nav>
 <section id="today">
 <div class="card"><div class="headrow"><h2>Start a workout</h2><span class="muted" id="todayDate"></span></div>
+<label for="workoutDate">Workout date</label><input id="workoutDate" type="date" value="" aria-describedby="workoutDateHelp"><p class="notice" id="workoutDateHelp">Automatically set to today. You can change it manually if needed.</p>
 <label for="muscle">Muscle group</label><select id="muscle"><option>Chest</option><option>Back</option><option>Shoulders</option><option>Biceps</option><option>Triceps</option><option>Legs</option><option>Abs / Core</option><option>Full Body</option><option>Cardio</option><option>Other</option></select>
 <label for="workoutType">Set type</label>
 <select id="workoutType">
@@ -202,7 +203,7 @@ function saveActiveDraft(){
  if(restoringDraft)return;
  try{
   const form={};
-  ['workoutType','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{const el=$(id);if(el)form[id]=el.value;});
+  ['workoutDate','workoutType','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{const el=$(id);if(el)form[id]=el.value;});
   form.dropStageCount=dropStageCount;
   form.dropStages=Array.from({length:dropStageCount},(_,i)=>({weight:$('dropWeight'+i)?.value||'',reps:$('dropReps'+i)?.value||''}));
   form.sidePatternBody=$('sidePatternBody')?.value||'hand';form.sideStages=readSideStages();
@@ -217,13 +218,14 @@ function restoreActiveDraft(){
  restoringDraft=true;
  try{
   if(d.session&&Array.isArray(d.session.exercises))session=d.session;
+  if($('workoutDate'))$('workoutDate').value=session.date||localDate();
   if(Array.isArray(d.draftSets))draftSets=d.draftSets;
   if(Array.isArray(d.draftSupersetSets))draftSupersetSets=d.draftSupersetSets;
   const f=d.form||{};dropStageCount=Math.min(10,Math.max(3,Number(f.dropStageCount)||3));
   if(Array.isArray(f.sideStages)&&f.sideStages.length)sideStages=f.sideStages.slice(0,10);else sideStages=defaultSideStages(f.sidePatternBody||'hand');
   if(f.workoutType&&$('workoutType'))$('workoutType').value=f.workoutType;
   updateSetTypeUI();
-  ['muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{if($(id)&&f[id]!==undefined)$(id).value=f[id];});
+  ['workoutDate','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{if($(id)&&f[id]!==undefined)$(id).value=f[id];});
   renderDropStages();if($('sidePatternBody'))$('sidePatternBody').value=f.sidePatternBody||'hand';renderSideStages();
   (f.dropStages||[]).forEach((v,i)=>{if($('dropWeight'+i))$('dropWeight'+i).value=v.weight||'';if($('dropReps'+i))$('dropReps'+i).value=v.reps||'';});
   updatePrev();renderDraft();
@@ -235,7 +237,22 @@ function restoreActiveDraft(){
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function norm(s){return String(s||'').trim().toLowerCase()}
 function previous(name){let all=db.workouts.slice().sort((a,b)=>b.date.localeCompare(a.date));for(const w of all){for(const e of w.exercises||[]){if(norm(e.name)===norm(name))return {date:w.date,e}}}return null}
-function updatePrev(){let n=$('exname').value.trim(),p=previous(n);$('prevRef').textContent=p?`Previous: ${p.date} · ${p.e.sets.map(s=>`${s.weight} kg × ${s.reps}`).join(' / ')}`:'Enter a workout name to see its most recent saved performance.'}
+function updatePrev(){
+ const n=$('exname').value.trim(),p=previous(n),box=$('prevRef');
+ if(!p){box.textContent='Enter a workout name to see its most recent saved performance and optional recommendation.';return}
+ const candidates=(p.e.sets||[]).flatMap(s=>Array.isArray(s.stages)?s.stages:[s]).filter(s=>Number.isFinite(Number(s.weight))&&Number.isFinite(Number(s.reps)));
+ if(!candidates.length){box.textContent=`Previous workout · ${p.date}. No usable weight/reps data found for a recommendation.`;return}
+ const last=candidates[candidates.length-1];
+ box.innerHTML=`<strong>Previous workout · ${esc(p.date)}</strong><div style="margin-top:5px">Last recorded: ${esc(last.weight)} kg × ${esc(last.reps)} reps</div><div class="fw-compare-note" style="margin-top:5px">Optional recommendation based on your last saved performance. Adjust the weight or reps to suit how you feel today.</div><div class="actions" style="margin-top:8px"><button type="button" class="btn secondary small" id="usePreviousRecommendation">Use recommendation: ${esc(last.weight)} kg × ${esc(last.reps)} reps</button></div>`;
+ const btn=$('usePreviousRecommendation');if(btn)btn.addEventListener('click',()=>{
+  const type=selectedSetType();
+  if(type==='Normal'){$('weight').value=last.weight;$('reps').value=last.reps;}
+  else if(type==='Drop Set'){$('dropWeight0').value=last.weight;$('dropReps0').value=last.reps;saveActiveDraft();}
+  else if(type==='Side Pattern'){$('sideWeight0').value=last.weight;$('sideReps0').value=last.reps;sideStages[0].weight=String(last.weight);sideStages[0].reps=String(last.reps);saveActiveDraft();}
+  else {alert('Recommendation shown. Enter the weight and reps for each workout in the Superset fields.');return;}
+  saveActiveDraft();btn.textContent='Recommendation applied';
+ });
+}
 $('exname').addEventListener('input',updatePrev);
 function selectedSetType(){return $('workoutType').value||'Normal'}
 function defaultSideStages(body){return body==='leg'?[{label:'Left Leg',weight:'',reps:''},{label:'Right Leg',weight:'',reps:''},{label:'Both Legs',weight:'',reps:''}]:body==='custom'?[{label:'Left Side',weight:'',reps:''},{label:'Right Side',weight:'',reps:''},{label:'Both Sides',weight:'',reps:''}]:[{label:'Left Hand',weight:'',reps:''},{label:'Right Hand',weight:'',reps:''},{label:'Both Hands',weight:'',reps:''}]}
@@ -262,7 +279,7 @@ function renderSideStages(){const list=$('sideStageList');if(!list)return;list.i
 $('sidePatternBody').addEventListener('change',()=>{sideStages=defaultSideStages($('sidePatternBody').value);renderSideStages();saveActiveDraft()});
 $('addSideStage').addEventListener('click',()=>{if(sideStages.length>=10){alert('A custom side pattern can contain up to 10 stages.');return}sideStages=readSideStages();sideStages.push({label:'Custom Side',weight:'',reps:''});renderSideStages();saveActiveDraft()});
 function removeSideStage(i){if(sideStages.length<=1){alert('Keep at least one stage.');return}sideStages=readSideStages();sideStages.splice(i,1);renderSideStages();saveActiveDraft()}
-$('workoutType').addEventListener('change',updateSetTypeUI);
+$('workoutType').addEventListener('change',()=>{updateSetTypeUI();updatePrev()});
 function addSet(){
  const type=selectedSetType();
  if(!$('exname').value.trim()){alert('Enter a workout name first.');return}
@@ -343,8 +360,8 @@ function saveDraftExercise(){
 }
 function removeExercise(i){session.exercises.splice(i,1);renderDraft();saveActiveDraft()}
 $('addSet').onclick=addSet;$('addExercise').onclick=saveDraftExercise;
-$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one workout before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY);persist();alert('Workout saved on this device. Export a backup regularly.')};
-$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY)}};
+$('finishWorkout').onclick=()=>{if(draftSets.length){if(!confirm('You have unsaved sets. Save them with this exercise?'))return;saveDraftExercise()}if(!session.exercises.length){alert('Add at least one workout before saving.');return}db.workouts.push({...session,id:Date.now(),exercises:session.exercises.map(e=>({...e,sets:e.sets.map(s=>({...s}))}))});session={date:localDate(),exercises:[]};if($('workoutDate'))$('workoutDate').value=session.date;draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY);persist();alert('Workout saved on this device. Export a backup regularly.')};
+$('clearSession').onclick=()=>{if(confirm('Clear the current unsaved workout?')){session={date:localDate(),exercises:[]};if($('workoutDate'))$('workoutDate').value=session.date;draftSets=[];draftSupersetSets=[];renderDraft();localStorage.removeItem(ACTIVE_DRAFT_KEY)}};
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['today','history','progress','backup'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));renderAll()});
 function allSets(w){return (w.exercises||[]).flatMap(e=>(e.sets||[]).map(s=>({...s,name:e.name,muscle:e.muscle,date:w.date})))}
 function renderHistory(){
@@ -423,6 +440,8 @@ function buildGeminiPrompt(){
 }
 function renderAll(){renderHistory();renderProgress();renderFreeInsights()}
 $('todayDate').textContent=localDate();
+if($('workoutDate'))$('workoutDate').value=session.date||localDate();
+$('workoutDate')?.addEventListener('change',()=>{const chosen=$('workoutDate').value;if(chosen){session.date=chosen;scheduleDraftSave();}});
 $('historyMuscleFilter')?.addEventListener('change',renderHistory);
 updateSetTypeUI();restoreActiveDraft();renderDraft();renderAll();
 document.addEventListener('input',ev=>{if(ev.target&&(ev.target.closest('#today')||ev.target.id?.startsWith('dropWeight')||ev.target.id?.startsWith('dropReps')))scheduleDraftSave();});
