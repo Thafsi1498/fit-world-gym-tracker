@@ -152,6 +152,7 @@ input,select,textarea{background:#111713!important;border-color:#3b4b3e!importan
 <div class="grid" id="normalSetFields"><div><label for="weight">Weight (kg)</label><input id="weight" type="number" min="0" step="0.5" placeholder="25"></div><div><label for="reps">Reps</label><input id="reps" type="number" min="0" step="1" placeholder="12"></div></div>
 <div id="supersetFields" class="hidden">
   <div class="grid"><div><label for="exname2">Second workout (Superset)</label><input id="exname2" placeholder="e.g. Cable Fly"></div><div><label for="machine2">Second machine / equipment</label><input id="machine2" placeholder="e.g. Cable machine"></div></div>
+  <div><label for="muscle2">Second workout muscle group</label><select id="muscle2"><option>Chest</option><option>Back</option><option>Shoulders</option><option>Biceps</option><option>Triceps</option><option>Legs</option><option>Abs / Core</option><option>Full Body</option><option>Cardio</option><option>Other</option></select><p class="notice">Choose a different muscle group for a cross-muscle superset, such as Biceps + Triceps. You can keep the same group for a regular superset.</p></div>
   <div class="grid"><div><label for="weight2">Second workout weight (kg)</label><input id="weight2" type="number" min="0" step="0.5" placeholder="15"></div><div><label for="reps2">Second workout reps</label><input id="reps2" type="number" min="0" step="1" placeholder="12"></div></div>
 </div>
 <div id="dropSetFields" class="hidden"><h3 style="margin:12px 0 4px">Drop Set Stages</h3><p class="notice">Enter 3 stages by default. All stages together count as ONE set. Use Add more stage if needed.</p><div id="dropStageList" class="drop-stage-list"></div><div class="actions drop-stage-actions"><button type="button" class="btn secondary" id="addDropStage">+ Add more stage</button></div></div>
@@ -203,7 +204,7 @@ function saveActiveDraft(){
  if(restoringDraft)return;
  try{
   const form={};
-  ['workoutDate','workoutType','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{const el=$(id);if(el)form[id]=el.value;});
+  ['workoutDate','workoutType','muscle','muscle2','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{const el=$(id);if(el)form[id]=el.value;});
   form.dropStageCount=dropStageCount;
   form.dropStages=Array.from({length:dropStageCount},(_,i)=>({weight:$('dropWeight'+i)?.value||'',reps:$('dropReps'+i)?.value||''}));
   form.sidePatternBody=$('sidePatternBody')?.value||'hand';form.sideStages=readSideStages();
@@ -225,7 +226,7 @@ function restoreActiveDraft(){
   if(Array.isArray(f.sideStages)&&f.sideStages.length)sideStages=f.sideStages.slice(0,10);else sideStages=defaultSideStages(f.sidePatternBody||'hand');
   if(f.workoutType&&$('workoutType'))$('workoutType').value=f.workoutType;
   updateSetTypeUI();
-  ['workoutDate','muscle','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{if($(id)&&f[id]!==undefined)$(id).value=f[id];});
+  ['workoutDate','muscle','muscle2','exname','machine','notes','exname2','machine2','weight','reps','weight2','reps2'].forEach(id=>{if($(id)&&f[id]!==undefined)$(id).value=f[id];});
   renderDropStages();if($('sidePatternBody'))$('sidePatternBody').value=f.sidePatternBody||'hand';renderSideStages();
   (f.dropStages||[]).forEach((v,i)=>{if($('dropWeight'+i))$('dropWeight'+i).value=v.weight||'';if($('dropReps'+i))$('dropReps'+i).value=v.reps||'';});
   updatePrev();renderDraft();
@@ -279,7 +280,9 @@ function renderSideStages(){const list=$('sideStageList');if(!list)return;list.i
 $('sidePatternBody').addEventListener('change',()=>{sideStages=defaultSideStages($('sidePatternBody').value);renderSideStages();saveActiveDraft()});
 $('addSideStage').addEventListener('click',()=>{if(sideStages.length>=10){alert('A custom side pattern can contain up to 10 stages.');return}sideStages=readSideStages();sideStages.push({label:'Custom Side',weight:'',reps:''});renderSideStages();saveActiveDraft()});
 function removeSideStage(i){if(sideStages.length<=1){alert('Keep at least one stage.');return}sideStages=readSideStages();sideStages.splice(i,1);renderSideStages();saveActiveDraft()}
-$('workoutType').addEventListener('change',()=>{updateSetTypeUI();updatePrev()});
+$('workoutType').addEventListener('change',()=>{if(selectedSetType()==='Superset'&&!$('muscle2').dataset.userChanged)$('muscle2').value=$('muscle').value;updateSetTypeUI();updatePrev()});
+$('muscle').addEventListener('change',()=>{if(!$('muscle2').dataset.userChanged)$('muscle2').value=$('muscle').value;saveActiveDraft()});
+$('muscle2').addEventListener('change',()=>{$('muscle2').dataset.userChanged='1';saveActiveDraft()});
 function addSet(){
  const type=selectedSetType();
  if(!$('exname').value.trim()){alert('Enter a workout name first.');return}
@@ -316,7 +319,7 @@ function renderDraft(){
   if(type==='Superset'){
    const a=esc($('exname').value||'First workout'), b=esc($('exname2').value||'Second workout');
    html+=`<div class="exercise"><div class="exhead"><div><strong>Superset · ${draftSets.length} round${draftSets.length===1?'':'s'}</strong><div class="muted" style="font-size:12px">Both exercises are paired in every round</div></div></div>`;
-   html+=draftSets.map((set,i)=>{const second=draftSupersetSets[i];return `<div class="fw-paired-round"><div class="fw-paired-round-title">ROUND ${i+1}</div><div class="fw-paired-exercise"><strong>A · ${a}</strong><span>${set.weight} kg × ${set.reps} reps</span></div><div class="fw-paired-exercise"><strong>B · ${b}</strong><span>${second?`${second.weight} kg × ${second.reps} reps`:'Waiting for second exercise'}</span></div><button class="btn danger small" onclick="removeDraft(${i})">Remove round</button></div>`}).join('');
+   html+=draftSets.map((set,i)=>{const second=draftSupersetSets[i];return `<div class="fw-paired-round"><div class="fw-paired-round-title">ROUND ${i+1}</div><div class="fw-paired-exercise"><strong>A · ${a} <small>(${esc($('muscle').value)})</small></strong><span>${set.weight} kg × ${set.reps} reps</span></div><div class="fw-paired-exercise"><strong>B · ${b} <small>(${esc($('muscle2').value)})</small></strong><span>${second?`${second.weight} kg × ${second.reps} reps`:'Waiting for second exercise'}</span></div><button class="btn danger small" onclick="removeDraft(${i})">Remove round</button></div>`}).join('');
    html+='<button class="btn secondary small" onclick="saveDraftExercise()">Save paired superset</button></div>';
   }else{
    html+=`<div class="exercise"><strong>${esc($('exname').value)}</strong><div class="muted" style="font-size:12px">${esc($('muscle').value)} · ${esc($('machine').value||'Equipment not specified')} · ${esc(type)}</div>`;
@@ -351,11 +354,11 @@ function saveDraftExercise(){
  const groupId=type==='Superset'?'superset-'+Date.now():null;
  session.exercises.push({muscle:$('muscle').value,name:$('exname').value.trim(),machine:$('machine').value.trim(),notes:$('notes').value.trim(),setType:type,supersetGroup:groupId,sets:draftSets.map(s=>({...s}))});
  if(type==='Superset'){
-  session.exercises.push({muscle:$('muscle').value,name:$('exname2').value.trim(),machine:$('machine2').value.trim(),notes:'Superset with '+$('exname').value.trim(),setType:type,supersetGroup:groupId,sets:draftSupersetSets.map(s=>({...s}))});
+  session.exercises.push({muscle:$('muscle2').value,name:$('exname2').value.trim(),machine:$('machine2').value.trim(),notes:'Superset with '+$('exname').value.trim(),setType:type,supersetGroup:groupId,sets:draftSupersetSets.map(s=>({...s}))});
  }
  draftSets=[];draftSupersetSets=[];dropStageCount=3;sideStages=defaultSideStages($('sidePatternBody')?.value||'hand');renderDropStages();renderSideStages();
  $('exname').value='';$('machine').value='';$('notes').value='';
- $('exname2').value='';$('machine2').value='';
+ $('exname2').value='';$('machine2').value='';$('muscle2').value=$('muscle').value;$('muscle2').dataset.userChanged='';
  updatePrev();renderDraft();saveActiveDraft();
 }
 function removeExercise(i){session.exercises.splice(i,1);renderDraft();saveActiveDraft()}
